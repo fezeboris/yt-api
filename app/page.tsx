@@ -1,12 +1,17 @@
-// // app/page.tsx
 // "use client";
 
 // import { useState } from "react";
-// import ReactMarkdown from "react-markdown";
+
+// // Define an interface for the subtitle object for type safety
+// interface SubtitleCue {
+//   start: string;
+//   text: string;
+// }
 
 // export default function HomePage() {
 //   const [url, setUrl] = useState("");
-//   const [subtitles, setSubtitles] = useState("");
+//   // The 'subtitles' state will now hold an array of SubtitleCue objects
+//   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
 //   const [loading, setLoading] = useState(false);
 //   const [error, setError] = useState("");
 
@@ -14,7 +19,7 @@
 //     e.preventDefault();
 //     setLoading(true);
 //     setError("");
-//     setSubtitles("");
+//     setSubtitles([]); // Clear previous results
 
 //     try {
 //       const res = await fetch("/api/get_subs", {
@@ -26,7 +31,8 @@
 //       const data = await res.json();
 //       if (!res.ok) throw new Error(data.error || "Failed to fetch subtitles");
 
-//       setSubtitles(cleanVTT(data.subtitles));
+//       // The data from the API is already parsed
+//       setSubtitles(data.subtitles);
 //     } catch (err: any) {
 //       setError(err.message);
 //     } finally {
@@ -34,34 +40,26 @@
 //     }
 //   };
 
-//   // Clean VTT function to get only the text
-//   function cleanVTT(vtt: string): string {
-//     return vtt
-//       .split("\n")
-//       .filter(
-//         (line) =>
-//           !line.match(/-->/) &&
-//           line.trim() !== "" &&
-//           !line.startsWith("WEBVTT") &&
-//           !line.startsWith("Kind:") &&
-//           !line.startsWith("Language:")
-//       )
-//       .map((line) => line.replace(/<[^>]+>/g, "")) // Remove all tags
-//       .join(" ")
-//       .replace(/\s+/g, " ")
-//       .trim();
-//   }
+//   // Helper function to format the timestamp for display (e.g., from 00:01:23.456 to 01:23)
+//   const formatTimestamp = (timestamp: string): string => {
+//     const parts = timestamp.split(":");
+//     if (parts.length === 3) {
+//       return `${parts[1]}:${parts[2].split(".")[0]}`; // Returns MM:SS
+//     }
+//     return timestamp;
+//   };
 
 //   return (
-//     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-//       <div className="w-full max-w-2xl mx-auto">
+//     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4 font-sans">
+//       <div className="w-full max-w-6xl mx-auto">
 //         <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8">
 //           <div className="text-center mb-8">
 //             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
 //               YouTube Subtitle Extractor
 //             </h1>
 //             <p className="text-gray-500 dark:text-gray-400 mt-2">
-//               Paste a YouTube URL below to get its subtitles.
+//               Paste a YouTube URL below to get its transcribed subtitles with
+//               timestamps.
 //             </p>
 //           </div>
 
@@ -89,14 +87,26 @@
 //           )}
 //         </div>
 
-//         {subtitles && (
+//         {subtitles.length > 0 && (
 //           <div className="mt-8 bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8">
-//             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-//               Subtitles
+//             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+//               Transcription
 //             </h2>
-//             <article className="prose prose-lg dark:prose-invert max-w-none">
-//               <ReactMarkdown>{subtitles}</ReactMarkdown>
-//             </article>
+//             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+//               {subtitles.map((cue, index) => (
+//                 <div
+//                   key={index}
+//                   className="flex items-start gap-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50"
+//                 >
+//                   <p className="text-sm font-mono text-blue-500 dark:text-blue-400 whitespace-nowrap pt-1">
+//                     {formatTimestamp(cue.start)}
+//                   </p>
+//                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+//                     {cue.text}
+//                   </p>
+//                 </div>
+//               ))}
+//             </div>
 //           </div>
 //         )}
 //       </div>
@@ -109,7 +119,6 @@
 
 import { useState } from "react";
 
-// Define an interface for the subtitle object for type safety
 interface SubtitleCue {
   start: string;
   text: string;
@@ -117,7 +126,6 @@ interface SubtitleCue {
 
 export default function HomePage() {
   const [url, setUrl] = useState("");
-  // The 'subtitles' state will now hold an array of SubtitleCue objects
   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -126,7 +134,7 @@ export default function HomePage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    setSubtitles([]); // Clear previous results
+    setSubtitles([]);
 
     try {
       const res = await fetch("/api/get_subs", {
@@ -138,27 +146,31 @@ export default function HomePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch subtitles");
 
-      // The data from the API is already parsed
       setSubtitles(data.subtitles);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error: unknown) {
+      // <-- CHANGE 'any' TO 'unknown'
+      if (error instanceof Error) {
+        setError(error.message); // Safely access the message property
+      } else {
+        setError("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to format the timestamp for display (e.g., from 00:01:23.456 to 01:23)
+  // ... (The rest of the component, formatTimestamp, and JSX remains exactly the same)
   const formatTimestamp = (timestamp: string): string => {
     const parts = timestamp.split(":");
     if (parts.length === 3) {
-      return `${parts[1]}:${parts[2].split(".")[0]}`; // Returns MM:SS
+      return `${parts[1]}:${parts[2].split(".")[0]}`;
     }
     return timestamp;
   };
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4 font-sans">
-      <div className="w-full max-w-6xl mx-auto">
+      <div className="w-full max-w-7xl mx-auto">
         <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -169,7 +181,6 @@ export default function HomePage() {
               timestamps.
             </p>
           </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
@@ -186,14 +197,12 @@ export default function HomePage() {
               {loading ? "Fetching..." : "Get Subtitles"}
             </button>
           </form>
-
           {error && (
             <p className="mt-4 text-center text-red-500 dark:text-red-400">
               Error: {error}
             </p>
           )}
         </div>
-
         {subtitles.length > 0 && (
           <div className="mt-8 bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
