@@ -3,14 +3,12 @@
 # Stage 1: Use an official Node.js image. Alpine is lightweight.
 FROM node:18-alpine AS base
 
-# Stage 2: Install system dependencies needed for yt-dlp
-# We need Python, pip for installing, and ffmpeg (a common yt-dlp dependency)
-RUN apk add --no-cache python3 py3-pip ffmpeg
+# Stage 2: Install system dependencies. 
+# We now install yt-dlp directly from the apk package manager, which is the correct way.
+# This also installs Python and other necessary dependencies automatically.
+RUN apk add --no-cache yt-dlp ffmpeg
 
-# Stage 3: Install yt-dlp globally using pip
-RUN pip install yt-dlp
-
-# Stage 4: Setup our Next.js application environment
+# Stage 3: Setup our Next.js application environment
 WORKDIR /app
 
 # Copy package files and install Node dependencies
